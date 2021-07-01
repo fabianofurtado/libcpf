@@ -1,0 +1,9 @@
+libcpf/*.o
+plugins/*.o
+plugins/*.so
+plugins2/*.o
+plugins2/*.so
+*.o
+example
+.DS_Store
+.vscode/*
