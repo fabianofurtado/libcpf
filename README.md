@@ -62,11 +62,23 @@ Shortly, you cannot! :(
 
 Instead of that, you could remove the function's name and strip the binary using strip (https://www.gnu.org/software/binutils/) or sstrip (https://www.muppetlabs.com/~breadbox/software/elfkickers.html) utilities, to make the reverse engineering more difficult.
 
-## Changing the default plugin directory name and extension
-There are two _#defines_ in _cpf.h_ to customize it:
+### Can I call generic constructor and destructor functions inside the plugin?
+YES! You can declare the prototypes...
 
-    #define PLUGIN_DIRNAME   "plugins" // default directory name
-    #define PLUGIN_EXTENSION ".so"     // default plugin extension
+    #include "../libcpf/cpf.h"
+
+    void CPF_constructor( plugin_t * plugin ) { plugin->version = "v1.0"; ... }
+    void CPF_destructor( plugin_t * plugin ) { ... }
+
+...inside the plugin and it'll be called automatically by _libcpf_. See the example.
+
+## Changing the default names of plugin directory, plugin extension, constructor and destructor functions
+There are four _#defines_ in _cpf.h_ to customize it:
+
+    #define PLUGIN_DIRNAME          "plugins"         // default directory name
+    #define PLUGIN_EXTENSION        ".so"             // default plugin extension
+    #define PLUGIN_CONSTRUCTOR_FUNC "CPF_constructor" // default plugin constructor func name
+    #define PLUGIN_DESTRUCTOR_FUNC  "CPF_destructor"  // default plugin destructor func name
 
 ## Using the provided example
 There's one example explaining the use of libcpf. To compile it, run
@@ -79,7 +91,10 @@ Execute the example program:
 
     ./example
 
+## Releases
+- v0.0.2 - 2021-07-08 - Constructor and Destructor function calls
+- v0.0.1 - 2021-07-01 - Initial release
+
 **TODO**
 - lib dependencies
-- constructor and destructor inside plugins to be called with _CPF_init()_ and _CPF_cleanup()_
 - remove the _FP_WRAPPER macro_ and create function pointer prototype dynamically. Is it possible?

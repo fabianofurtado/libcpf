@@ -30,9 +30,11 @@
 
 
 static void
-CPF_free_all_plugins( cpf_t * cpf )
+CPF_free_all_plugins( cpf_t * cpf, bool call_destructor )
 {
   unsigned short i;
+  ctor_dtor_t ctor_dtor;
+
 
   if ( cpf == NULL )
     return;
@@ -40,6 +42,12 @@ CPF_free_all_plugins( cpf_t * cpf )
     return;
   // close the shared object handlers and free heap memory
   for ( i = 0 ; i < cpf->number_of_plugins ; i++ ) {
+    // Call the possible destructor
+    if  ( ( call_destructor == true ) &&
+          ( cpf->plugin[i].destructor_addr != NULL ) ) {
+      ctor_dtor = cpf->plugin[i].destructor_addr;
+      ctor_dtor( &(cpf->plugin[i]) );
+    }
     DLCLOSE( cpf->plugin[i].dlhandle )
     FREE( cpf->plugin[i].funcs )
   }
@@ -49,19 +57,20 @@ CPF_free_all_plugins( cpf_t * cpf )
 
 
 void
-CPF_cleanup( cpf_t ** cpf )
+CPF_cleanup( cpf_t ** cpf, bool call_destructor )
 {
   if ( (*cpf) == NULL )
     return;
-  CPF_free_all_plugins( (*cpf) );
+  CPF_free_all_plugins( (*cpf), call_destructor );
   FREE( (*cpf) )
 }
 
 
 cpf_t *
-CPF_init( char * directory_name )
+CPF_init( char * directory_name, bool call_constructor_destructor )
 {
   cpf_t * cpf = NULL;
+
 
   cpf = (cpf_t *)calloc( 1, sizeof( cpf_t ) );
   if ( cpf == NULL ) {
@@ -122,10 +131,10 @@ CPF_init( char * directory_name )
   }
 
   if ( bind_plugins( cpf ) == 0 ) {
-    CPF_free_all_plugins( cpf );
+    CPF_free_all_plugins( cpf, call_constructor_destructor );
   }
   else {
-    load_plugins( cpf );
+    load_plugins( cpf, call_constructor_destructor );
   }
   return cpf;
 }
@@ -137,6 +146,7 @@ CPF_print_loaded_libs( cpf_t * cpf )
   unsigned short i, j;
   char * str_msg = "    Func name: %s\t | Offset: 0x%lx\t | Address: %p\n"; 
 
+
   if ( cpf->number_of_plugins == 0 ) {
     LOG_INFO( "No plugins loaded in memory!" )
     return;
@@ -147,8 +157,9 @@ CPF_print_loaded_libs( cpf_t * cpf )
           cpf->path );
 
   for ( i=0 ; i < cpf->number_of_plugins ; i++ ) {
-    printf( "  %s has %d functions:\n    ( base address: %p | sha1: ",
+    printf( "  %s version %s has %d functions:\n    ( base address: %p | sha1: ",
             cpf->plugin[i].path,
+            cpf->plugin[i].version,
             cpf->plugin[i].total_funcs,
             cpf->plugin[i].base_addr);
     print_sha1( &cpf->plugin[i] );
@@ -174,6 +185,7 @@ CPF_get_plugin_base_addr( cpf_t * cpf, char * plugin_name )
 {
   unsigned short i;
 
+
   if ( plugin_name == NULL ) {
     LOG_ERROR( "CPF_get_plugin_base_addr(): Parameter cannot be NULL!" )
     return NULL;
@@ -193,6 +205,7 @@ void *
 CPF_get_func_addr( cpf_t * cpf, char * plugin_name, char * func_name )
 {
   unsigned short i, j;
+
 
   if ( ( plugin_name == NULL  ) || ( func_name == NULL )) {
     LOG_ERROR( "CPF_get_func_addr(): Parameters cannot be NULL!" )
@@ -218,6 +231,7 @@ uint64_t
 CPF_get_func_offset( cpf_t * cpf, char * plugin_name, char * func_name )
 {
   unsigned short i, j;
+
 
   if ( ( plugin_name == NULL  ) || ( func_name == NULL )) {
     LOG_ERROR( "CPF_get_func_offset(): Parameters cannot be NULL!" )
@@ -245,6 +259,7 @@ CPF_call_func_by_addr( void * func_addr, enum func_prototype_t fproto, ... )
   va_list varglist;
   void * ret = NULL;
 
+
   if ( func_addr == NULL) {
     LOG_ERROR( "CPF_call_func_by_addr(): function address cannot be NULL!" )
     return NULL;
@@ -268,6 +283,7 @@ CPF_call_func_by_offset( cpf_t * cpf,
   va_list varglist;
   void * base_addr;
   void * ret = NULL;
+
 
   if ( func_offset == 0 )
     return NULL;
@@ -293,6 +309,7 @@ CPF_call_func_by_name( cpf_t * cpf,
   va_list varglist;
   void * func_addr;
   void * ret = NULL;
+
 
   if ( ( func_addr = CPF_get_func_addr( cpf, plugin_name, func_name ) ) == NULL )
     return NULL;
@@ -320,16 +337,18 @@ CPF_reload_libs( cpf_t ** cpf, bool display_report )
   unsigned short  num_plugins, c, l, r;
   unsigned char * status_l; // loaded: currently in use
   unsigned char * status_r; // reloaded: will be loaded
+  ctor_dtor_t ctor_dtor;
 
-  if ( ( cpf_reloaded = CPF_init( (*cpf)->path ) ) == NULL ) {
+
+  if ( ( cpf_reloaded = CPF_init( (*cpf)->path, false ) ) == NULL ) {
     LOG_ERROR( "CPF_reload_libs(): Cannot initialize plugin framework to reload shared libs!" )
     return EXIT_FAILURE;
   }
 
   if ( cpf_reloaded->number_of_plugins == 0 ) {
     // unload all current libs from memory
-    CPF_cleanup( &cpf_reloaded );
-    CPF_cleanup( cpf );
+    CPF_cleanup( &cpf_reloaded, false );
+    CPF_cleanup( cpf, false );
     return EXIT_SUCCESS;
   }
 
@@ -345,7 +364,7 @@ CPF_reload_libs( cpf_t ** cpf, bool display_report )
     exit( EXIT_FAILURE );
   }
   // Set the new lib status:
-  //   * (R)eload: The loades lib was modified ( same name and different sha1 )
+  //   * (R)eload: The loaded lib was modified ( same name and different sha1 )
   //   * (D)elete: The loaded lib doesn't exist anymore ( lib deleted from directory )
   //   * (U)nmodified: The loaded lib wasn't modified ( same name and sha1 )
   //   * (N)ew: The lib's name isn't in the current list ( new lib/name to load in the list )
@@ -382,8 +401,13 @@ CPF_reload_libs( cpf_t ** cpf, bool display_report )
            ( memcmp( (*cpf)->plugin[l].sha1, cpf_reloaded->plugin[r].sha1, sizeof( (*cpf)->plugin->sha1 ) ) != 0 ) ) {
         status_l[l] = 'R';
         status_r[r] = 'R';
-        // do the reload process:
+        // Do the reload process:
 
+        // Call the possible destructor, before reload
+        if ( (*cpf)->plugin[l].destructor_addr != NULL ) {
+          ctor_dtor = (*cpf)->plugin[l].destructor_addr;
+          ctor_dtor( &((*cpf)->plugin[l]) );
+        }
         // Free current lib dynamic allocation
         DLCLOSE( (*cpf)->plugin[l].dlhandle )
         FREE( (*cpf)->plugin[l].funcs )
@@ -392,6 +416,11 @@ CPF_reload_libs( cpf_t ** cpf, bool display_report )
         // Set to NULL the "old" reloaded allocated structs
         cpf_reloaded->plugin[r].dlhandle = NULL;
         cpf_reloaded->plugin[r].funcs = NULL;
+        // Call the possible constructor, after reload
+        if ( (*cpf)->plugin[l].constructor_addr != NULL ) {
+          ctor_dtor = (*cpf)->plugin[l].constructor_addr;
+          ctor_dtor( &((*cpf)->plugin[l]) );
+        }
         break;
       }
     }
@@ -408,6 +437,12 @@ CPF_reload_libs( cpf_t ** cpf, bool display_report )
   for ( l = 0 ; l < (*cpf)->number_of_plugins ; l++ ) {
     if ( status_l[l] != 'D' ) { // only 'R' and 'U' flags
       num_plugins++;
+    }
+    if ( ( status_l[l] == 'D' ) &&
+         ( (*cpf)->plugin[l].destructor_addr != NULL )  ) {
+      // Call the destructor for marked deleted lib
+      ctor_dtor = (*cpf)->plugin[l].destructor_addr;
+      ctor_dtor( &( (*cpf)->plugin[l] ) );
     }
     if ( display_report == true ) {
       switch( status_l[l] )
@@ -430,6 +465,11 @@ CPF_reload_libs( cpf_t ** cpf, bool display_report )
   for ( r = 0 ; r < cpf_reloaded->number_of_plugins ; r++ ) {
     if ( status_r[r] == 'N' ) {
       num_plugins++;
+      // call the constructor for the (N) plugin
+      if ( cpf_reloaded->plugin[r].constructor_addr != NULL ) {
+        ctor_dtor = cpf_reloaded->plugin[r].constructor_addr;
+        ctor_dtor( &(cpf_reloaded->plugin[r]) );
+      }
       if ( display_report == true ) {
         LOG_INFO("* %s (New)", cpf_reloaded->plugin[r].name )
       }
@@ -450,13 +490,14 @@ CPF_reload_libs( cpf_t ** cpf, bool display_report )
             "%s",
             (*cpf)->path );
 
+  // cpf_tmp will receive only (R), (U) and (N) plugins
   cpf_tmp->plugin = ( plugin_t * )calloc( num_plugins, sizeof( plugin_t ) );
   if ( cpf_tmp->plugin == NULL ) {
     LOG_ERROR( "Cannot allocate memory for tmp plugins!" )
     exit( EXIT_FAILURE );
   }
 
-  // memcpy the new plugins
+  // memcpy the (R), (U) and (N) plugins
   for( c = 0 ; c < num_plugins ; ) {
     for ( l = 0 ; l < (*cpf)->number_of_plugins ; l++ ) {
       if ( status_l[l] != 'D' ) { // only 'R' and 'U' flags
@@ -478,8 +519,8 @@ CPF_reload_libs( cpf_t ** cpf, bool display_report )
 
   FREE( status_r )
   FREE( status_l )
-  CPF_cleanup( &cpf_reloaded );
-  CPF_cleanup( cpf );
+  CPF_cleanup( &cpf_reloaded, false );
+  CPF_cleanup( cpf, false );
   sort_plugins( cpf_tmp );
   *cpf = cpf_tmp;
   return EXIT_SUCCESS;
@@ -493,5 +534,5 @@ CPF_unload_libs( cpf_t * cpf )
     LOG_INFO( "CPF_unload_libs(): There is no plugins loaded in memory!" )
     return;
   }
-  CPF_free_all_plugins( cpf );
+  CPF_free_all_plugins( cpf, true );
 }

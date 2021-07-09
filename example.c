@@ -16,7 +16,7 @@ main(void)
   cpf_t * cpf;
   cpf_t * cpf2;
 
-  if ( ( cpf = CPF_init( NULL ) ) == NULL ) {
+  if ( ( cpf = CPF_init( NULL, true ) ) == NULL ) {
     LOG_ERROR( "Cannot initialize plugin framework!" )
     return EXIT_FAILURE;
   }
@@ -123,7 +123,7 @@ main(void)
          * CPF_init( "plugin_directory" ) ==> for relative local directory
          * or CPF_init( "/my/plugin/directory" ) ==> full plugin directory path
          */
-        if ( ( cpf2 = CPF_init( "plugins2" ) ) == NULL ) {
+        if ( ( cpf2 = CPF_init( "plugins2", true ) ) == NULL ) {
           LOG_ERROR( "Cannot initialize plugin framework!" )
           return EXIT_FAILURE;
         }
@@ -136,7 +136,7 @@ main(void)
                                                         offset,
                                                         FP_INT_INT,
                                                         15 ) );
-        CPF_cleanup( &cpf2 );
+        CPF_cleanup( &cpf2, true );
         break;
       case 9:
         puts( "Initializing /tmp/plugins2 directory..." );
@@ -145,7 +145,7 @@ main(void)
          * CPF_init( "plugin_directory" ) ==> for relative local directory
          * or CPF_init( "/my/plugin/directory" ) ==> full plugin directory path
          */
-        if ( ( cpf2 = CPF_init( "/tmp/plugins2" ) ) == NULL ) {
+        if ( ( cpf2 = CPF_init( "/tmp/plugins2", true ) ) == NULL ) {
           LOG_ERROR( "Cannot initialize plugin framework!" )
           return EXIT_FAILURE;
         }
@@ -158,10 +158,10 @@ main(void)
                                                         offset,
                                                         FP_INT_INT,
                                                         20 ) );
-        CPF_cleanup( &cpf2 );
+        CPF_cleanup( &cpf2, true );
         break;
       default:
-        CPF_cleanup( &cpf );
+        CPF_cleanup( &cpf, true );
         puts( "Exiting..." );
         return EXIT_SUCCESS;
         break;

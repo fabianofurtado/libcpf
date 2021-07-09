@@ -18,7 +18,9 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 #include <link.h>
 #include <dirent.h>
 #include <dlfcn.h>
@@ -48,7 +50,7 @@ void sort_plugins( cpf_t * cpf ) {
 
 
 void
-load_plugins( cpf_t * cpf )
+load_plugins( cpf_t * cpf, bool call_constructor )
 {
   ElfW(Ehdr)      *elf_header;
   //ElfW(Phdr)      *prog_header;
@@ -60,6 +62,8 @@ load_plugins( cpf_t * cpf )
                   symtbltotalsize,
                   symtblentrysize = 0;
   struct link_map *lnkmap;
+  ctor_dtor_t ctor_dtor;
+
 
   for( plugin_counter=0 ; plugin_counter < cpf->number_of_plugins ; plugin_counter++ ) {
     cpf->plugin[plugin_counter].total_funcs = 0;
@@ -117,11 +121,30 @@ load_plugins( cpf_t * cpf )
       }
     }
 
+    // count the number of plugin functions, without constructor and destructor, and
+    // bind the constructor and destructor functions, if exits.
     symtbltotalsize = ((strtable - (void *)symtable)/symtblentrysize);
-    for ( i = 0 ; i < symtbltotalsize ; i++ )
+    for ( i = 0 ; i < symtbltotalsize ; i++ ) {
       if ( ( ELF64_ST_TYPE( symtable[i].st_info ) == STT_FUNC ) &&
-           ( symtable[i].st_value > 0 ) )
-        cpf->plugin[plugin_counter].total_funcs++;
+           ( symtable[i].st_value > 0 ) ) {
+        if ( ( symtable[i].st_name != 0 ) &&
+             ( *(char *)(strtable + symtable[i].st_name) != 0 ) &&
+             ( strcmp( (char *)(strtable + symtable[i].st_name),
+                       PLUGIN_CONSTRUCTOR_FUNC ) == 0 ) ) {
+          cpf->plugin[plugin_counter].constructor_addr = cpf->plugin[plugin_counter].base_addr +
+                                                         symtable[i].st_value;
+        } else 
+          if ( ( symtable[i].st_name != 0 ) &&
+              ( *(char *)(strtable + symtable[i].st_name) != 0 ) &&
+              ( strcmp( (char *)(strtable + symtable[i].st_name),
+                        PLUGIN_DESTRUCTOR_FUNC ) == 0 ) ) {
+            cpf->plugin[plugin_counter].destructor_addr = cpf->plugin[plugin_counter].base_addr +
+                                                          symtable[i].st_value;
+          } else {
+            cpf->plugin[plugin_counter].total_funcs++;
+          }
+      }
+    }
 
     cpf->plugin[plugin_counter].funcs = (func_t *)calloc( cpf->plugin[plugin_counter].total_funcs, sizeof( func_t ) );
     if ( cpf->plugin[plugin_counter].funcs == NULL ) {
@@ -132,7 +155,11 @@ load_plugins( cpf_t * cpf )
     j=0;
     for ( i = 0 ; i < symtbltotalsize ; i++ ) {
       if ( ( ELF64_ST_TYPE( symtable[i].st_info ) == STT_FUNC ) &&
-           ( symtable[i].st_value > 0 ) ) {
+           ( symtable[i].st_value > 0 ) &&
+           ( cpf->plugin[plugin_counter].constructor_addr !=
+             cpf->plugin[plugin_counter].base_addr + symtable[i].st_value ) &&
+           ( cpf->plugin[plugin_counter].destructor_addr !=
+             cpf->plugin[plugin_counter].base_addr + symtable[i].st_value ) ) {
         cpf->plugin[plugin_counter].funcs[j].func_name = NULL;
         if ( ( symtable[i].st_name != 0 ) &&
              ( *(char *)(strtable + symtable[i].st_name) != 0 ) )
@@ -145,6 +172,16 @@ load_plugins( cpf_t * cpf )
     calc_sha1( &cpf->plugin[plugin_counter] );
   } // end for
   sort_plugins( cpf );
+  // Call the plugins' constructor after the sort and binding
+  if ( call_constructor == true ) {
+    for( plugin_counter=0 ; plugin_counter < cpf->number_of_plugins ; plugin_counter++ ) {
+      // Call the possible constructor
+      if ( cpf->plugin[plugin_counter].constructor_addr != NULL ) {
+        ctor_dtor = cpf->plugin[plugin_counter].constructor_addr;
+        ctor_dtor( &(cpf->plugin[plugin_counter]) );
+      }
+    }
+  }
 }
 
 
@@ -155,6 +192,7 @@ dir_content( cpf_t * cpf, char * path, unsigned short * binded_plugins )
   struct dirent * dir_entry; // for the directory entries
   char d_path[MAX_PLUGIN_PATH_SIZE];
   unsigned short number_of_plugins = 0;
+
 
   if ( ( d = opendir( path ) ) == NULL ) {
     LOG_ERROR( "Cannot open directory \"%s\"!", path )
@@ -185,6 +223,7 @@ dir_content( cpf_t * cpf, char * path, unsigned short * binded_plugins )
             FREE( cpf )
             exit( EXIT_FAILURE );
           }
+          cpf->plugin[*binded_plugins].version = NOT_DEFINED; // version default value
           snprintf( d_path, sizeof( cpf->plugin->path ), "%s/%s", path, dir_entry->d_name );
           snprintf( cpf->plugin[*binded_plugins].path,
                     sizeof( cpf->plugin->path ),

@@ -27,15 +27,18 @@
 #include "log.h"
 
 // macros
-#define FREE( ptr ) do { free( ptr ); ptr = NULL; } while (0);
+#define FREE( ptr ) do { free( ptr ); ptr = NULL; } while (0); // avoid dangling pointer
 #define DLCLOSE( ptr ) do { if ( ptr != NULL ) { dlclose( ptr ); ptr = NULL; } } while (0);
 
 // defines
-#define MAX_PLUGIN_PATH_SIZE   2048
-#define MAX_PLUGIN_NAME_SIZE   512
-#define PLUGIN_DIRNAME         "plugins" // default directory name
-#define PLUGIN_EXTENSION       ".so"     // default plugin extension
-#define NOT_DEFINED            "<NOT DEFINED>"
+#define MAX_PLUGIN_PATH_SIZE    2048
+#define MAX_PLUGIN_NAME_SIZE    512
+#define PLUGIN_DIRNAME          "plugins"         // default directory name
+#define PLUGIN_EXTENSION        ".so"             // default plugin extension
+#define PLUGIN_CONSTRUCTOR_FUNC "CPF_constructor" // default plugin constructor func name
+#define PLUGIN_DESTRUCTOR_FUNC  "CPF_destructor"  // default plugin destructor func name
+#define NOT_DEFINED             "<NOT DEFINED>"
+
 
 // typedefs and structs
 typedef struct {
@@ -54,6 +57,9 @@ typedef struct {
   void * base_addr;                       // plugin (.so) base addr when loaded into memory
   func_t * funcs;                         // pointer to funcs
   unsigned short total_funcs;             // number of functions found in plugin (shared lib)
+  void * constructor_addr;                // pointer to constructor function
+  void * destructor_addr;                 // pointer to destructor function
+  char * version;                         // optional plugin version
   unsigned char  sha1[SHA_DIGEST_LENGTH]; // plugin (.so) SHA1 hash
 } plugin_t;
 
@@ -63,8 +69,12 @@ typedef struct {
   unsigned short number_of_plugins;
 } cpf_t;
 
-cpf_t *  CPF_init( char * directory_name );
-void     CPF_cleanup( cpf_t ** cpf );
+// constructor and destructor typedef
+typedef void ( *ctor_dtor_t ) ( plugin_t * );
+
+
+cpf_t *  CPF_init( char * directory_name, bool call_constructor_destructor );
+void     CPF_cleanup( cpf_t ** cpf, bool call_destructor );
 void *   CPF_call_func_by_addr( void * func_addr, enum func_prototype_t fproto, ... );
 void *   CPF_call_func_by_name( cpf_t * cpf, char * plugin_name, char * func_name, enum func_prototype_t fproto, ... );
 void *   CPF_call_func_by_offset( cpf_t * cpf, char * plugin_name, uint64_t func_offset, enum func_prototype_t fproto, ... );
