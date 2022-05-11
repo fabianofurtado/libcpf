@@ -57,7 +57,7 @@ load_plugins( cpf_t * cpf, bool call_constructor )
   ElfW(Dyn)       *dynamic;
   ElfW(Sym)       *symtable;
   void            *strtable;
-  unsigned short  i, j,
+  uint16_t        i, j,
                   plugin_counter,
                   symtbltotalsize,
                   symtblentrysize = 0;
@@ -185,19 +185,18 @@ load_plugins( cpf_t * cpf, bool call_constructor )
 }
 
 
-static int
-dir_content( cpf_t * cpf, char * path, unsigned short * binded_plugins )
+static uint16_t
+dir_content( cpf_t * cpf, char * path, uint16_t * binded_plugins )
 {
   DIR * d; // open the path
   struct dirent * dir_entry; // for the directory entries
   char d_path[MAX_PLUGIN_PATH_SIZE];
-  unsigned short number_of_plugins = 0;
+  uint16_t number_of_plugins = 0;
 
 
   if ( ( d = opendir( path ) ) == NULL ) {
     LOG_ERROR( "Cannot open directory \"%s\"!", path )
-    FREE( cpf )
-    exit( EXIT_FAILURE );
+    return number_of_plugins;
   }
 
   while ( ( dir_entry = readdir( d ) ) != NULL )
@@ -206,19 +205,21 @@ dir_content( cpf_t * cpf, char * path, unsigned short * binded_plugins )
       if ( ( strcmp( dir_entry->d_name, "." ) == 0 ) ||
            ( strcmp( dir_entry->d_name, ".." ) == 0 ) )
         continue;
-      if ( strlen( path ) + strlen( dir_entry->d_name ) + 2 > sizeof( cpf->plugin->path ) ) {
+      if ( strlen( path ) + strlen( dir_entry->d_name ) + 2 /* "\0" and "/" */ >
+           snprintf( d_path, sizeof( cpf->plugin->path ), "%s/%s", path, dir_entry->d_name ) ) {
         LOG_ERROR( "Plugin directory path will be truncated!" )
         FREE( cpf )
         exit( EXIT_FAILURE );
       }
-      snprintf( d_path, sizeof( d_path ), "%s/%s", path, dir_entry->d_name );
-      number_of_plugins += dir_content( cpf, d_path, binded_plugins ); // recall with the new path
+      // recall dir_content with the new path
+      number_of_plugins += dir_content( cpf, d_path, binded_plugins );
     }
     else { // file found
       if ( strstr( dir_entry->d_name, PLUGIN_EXTENSION ) != NULL ) {
         number_of_plugins++;
         if ( cpf != NULL ) {
-          if ( strlen( path ) + strlen( dir_entry->d_name ) + 2 > sizeof( cpf->plugin->path ) ) {
+          if ( strlen( path ) + strlen( dir_entry->d_name ) + 2 /* "\0" and "/" */ >
+               sizeof( cpf->plugin->path ) ) {
             LOG_ERROR( "Plugin full path will be truncated!" )
             FREE( cpf )
             exit( EXIT_FAILURE );
@@ -244,11 +245,11 @@ dir_content( cpf_t * cpf, char * path, unsigned short * binded_plugins )
 }
 
 
-unsigned short
+uint16_t
 bind_plugins( cpf_t * cpf )
 {
   char path[MAX_PLUGIN_PATH_SIZE];
-  unsigned short binded_plugins = 0; // will be used in dir_content internally
+  uint16_t binded_plugins = 0; // will be used in dir_content internally
 
 
   if ( cpf == NULL) {

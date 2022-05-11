@@ -31,6 +31,7 @@
 #define DLCLOSE( ptr ) do { if ( ptr != NULL ) { dlclose( ptr ); ptr = NULL; } } while (0);
 
 // defines
+#define LIBCPF_VERSION          "0.0.3"
 #define MAX_PLUGIN_PATH_SIZE    2048
 #define MAX_PLUGIN_NAME_SIZE    512
 #define PLUGIN_DIRNAME          "plugins"         // default directory name
@@ -48,25 +49,25 @@ typedef struct {
 } func_t;
 
 typedef struct {
-  char path[MAX_PLUGIN_PATH_SIZE];        // plugin path + name with extension
-                                          // Ex: /tmp/app/plugins/myplugin.so and
-                                          //     /tmp/app/plugins/dir1/myplugin.so
-  char name[MAX_PLUGIN_NAME_SIZE];        // base path + plugin name without extension
-                                          // Ex: "myplugin" and "dir1/myplugin"
-  void * dlhandle;                        // pointer to "dl" functions
-  void * base_addr;                       // plugin (.so) base addr when loaded into memory
-  func_t * funcs;                         // pointer to funcs
-  unsigned short total_funcs;             // number of functions found in plugin (shared lib)
-  void * constructor_addr;                // pointer to constructor function
-  void * destructor_addr;                 // pointer to destructor function
-  char * version;                         // optional plugin version
-  unsigned char  sha1[SHA_DIGEST_LENGTH]; // plugin (.so) SHA1 hash
+  char path[MAX_PLUGIN_PATH_SIZE];  // plugin path + name with extension
+                                    // Ex: /tmp/app/plugins/myplugin.so and
+                                    //     /tmp/app/plugins/dir1/myplugin.so
+  char name[MAX_PLUGIN_NAME_SIZE];  // base path + plugin name without extension
+                                    // Ex: "myplugin" and "dir1/myplugin"
+  void * dlhandle;                  // pointer to "dl" functions
+  void * base_addr;                 // plugin (.so) base addr when loaded into memory
+  func_t * funcs;                   // pointer to funcs
+  uint16_t total_funcs;             // number of functions found in plugin (shared lib)
+  void * constructor_addr;          // pointer to constructor function
+  void * destructor_addr;           // pointer to destructor function
+  char * version;                   // optional plugin version
+  uint8_t sha1[SHA_DIGEST_LENGTH];  // plugin (.so) SHA1 hash
 } plugin_t;
 
 typedef struct {
   plugin_t * plugin;
   char path[MAX_PLUGIN_PATH_SIZE];        // plugin path without plugin name
-  unsigned short number_of_plugins;
+  uint16_t number_of_plugins;
 } cpf_t;
 
 // constructor and destructor typedef

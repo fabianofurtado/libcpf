@@ -32,7 +32,7 @@
 static void
 CPF_free_all_plugins( cpf_t * cpf, bool call_destructor )
 {
-  unsigned short i;
+  uint16_t i;
   ctor_dtor_t ctor_dtor;
 
 
@@ -90,7 +90,7 @@ CPF_init( char * directory_name, bool call_constructor_destructor )
     }
     strcat( cpf->path, "/" );
 
-    if ( strlen( cpf->path ) + sizeof( PLUGIN_DIRNAME ) > sizeof( cpf->path ) ) {
+    if ( strlen( cpf->path ) + sizeof( PLUGIN_DIRNAME ) + 1 > sizeof( cpf->path ) ) {
       LOG_ERROR( "CPF_init(): Plugin path size cannot be greather than %ld bytes!",
                  sizeof( cpf->path ) )
       exit( EXIT_FAILURE );
@@ -143,7 +143,7 @@ CPF_init( char * directory_name, bool call_constructor_destructor )
 void
 CPF_print_loaded_libs( cpf_t * cpf )
 {
-  unsigned short i, j;
+  uint16_t i, j;
   char * str_msg = "    Func name: %s\t | Offset: 0x%lx\t | Address: %p\n"; 
 
 
@@ -183,7 +183,7 @@ CPF_print_loaded_libs( cpf_t * cpf )
 static void *
 CPF_get_plugin_base_addr( cpf_t * cpf, char * plugin_name )
 {
-  unsigned short i;
+  uint16_t i;
 
 
   if ( plugin_name == NULL ) {
@@ -204,8 +204,12 @@ CPF_get_plugin_base_addr( cpf_t * cpf, char * plugin_name )
 void *
 CPF_get_func_addr( cpf_t * cpf, char * plugin_name, char * func_name )
 {
-  unsigned short i, j;
+  uint16_t i, j;
 
+  if ( cpf->number_of_plugins == 0 ) {
+    LOG_ERROR( "CPF_get_func_addr(): There is no plugin loaded!" )
+    return NULL;
+  }
 
   if ( ( plugin_name == NULL  ) || ( func_name == NULL )) {
     LOG_ERROR( "CPF_get_func_addr(): Parameters cannot be NULL!" )
@@ -230,8 +234,12 @@ CPF_get_func_addr( cpf_t * cpf, char * plugin_name, char * func_name )
 uint64_t
 CPF_get_func_offset( cpf_t * cpf, char * plugin_name, char * func_name )
 {
-  unsigned short i, j;
+  uint16_t i, j;
 
+  if ( cpf->number_of_plugins == 0 ) {
+    LOG_ERROR( "CPF_get_func_offset(): There is no plugin loaded!" )
+    return 0;
+  }
 
   if ( ( plugin_name == NULL  ) || ( func_name == NULL )) {
     LOG_ERROR( "CPF_get_func_offset(): Parameters cannot be NULL!" )
@@ -310,6 +318,12 @@ CPF_call_func_by_name( cpf_t * cpf,
   void * func_addr;
   void * ret = NULL;
 
+/*
+  if ( cpf->number_of_plugins == 0 ) {
+    LOG_ERROR( "CPF_call_func_by_name(): There is no plugin loaded!" )
+    return NULL;
+  }
+*/
 
   if ( ( func_addr = CPF_get_func_addr( cpf, plugin_name, func_name ) ) == NULL )
     return NULL;
@@ -334,9 +348,12 @@ CPF_reload_libs( cpf_t ** cpf, bool display_report )
 {
   cpf_t * cpf_reloaded;
   cpf_t * cpf_tmp;
-  unsigned short  num_plugins, c, l, r;
-  unsigned char * status_l; // loaded: currently in use
-  unsigned char * status_r; // reloaded: will be loaded
+  uint16_t num_plugins,
+           c,
+           l,
+           r;
+  uint8_t * status_l; // loaded: currently in use
+  uint8_t * status_r; // reloaded: will be loaded
   ctor_dtor_t ctor_dtor;
 
 
@@ -346,19 +363,18 @@ CPF_reload_libs( cpf_t ** cpf, bool display_report )
   }
 
   if ( cpf_reloaded->number_of_plugins == 0 ) {
-    // unload all current libs from memory
+    LOG_INFO( "There's no plugin to be reloaded!" );
     CPF_cleanup( &cpf_reloaded, false );
-    CPF_cleanup( cpf, false );
     return EXIT_SUCCESS;
   }
 
-  status_l = (unsigned char *)malloc( (*cpf)->number_of_plugins * sizeof( unsigned char ) );
+  status_l = (uint8_t *)malloc( (*cpf)->number_of_plugins * sizeof( uint8_t ) );
   if ( status_l == NULL ) {
     LOG_ERROR( "CPF_reload_libs(): Cannot allocate memory for reload plugins!" )
     exit( EXIT_FAILURE );
   }
 
-  status_r = (unsigned char *)malloc( cpf_reloaded->number_of_plugins * sizeof( unsigned char ) );
+  status_r = (uint8_t *)malloc( cpf_reloaded->number_of_plugins * sizeof( uint8_t ) );
   if ( status_r == NULL ) {
     LOG_ERROR( "CPF_reload_libs(): Cannot allocate memory for reload plugins!" )
     exit( EXIT_FAILURE );
@@ -371,10 +387,10 @@ CPF_reload_libs( cpf_t ** cpf, bool display_report )
 
   // Set to Delete 'D' the default status of current plugin
   // ===> All possible flags/status: 'D', 'R' or 'U'
-  memset( status_l, 'D', (*cpf)->number_of_plugins * sizeof( unsigned char ) );
+  memset( status_l, 'D', (*cpf)->number_of_plugins * sizeof( uint8_t ) );
   // Set to New 'N' the default status of reloaded plugin
   // ===> All possible flags/status: 'N', 'R' or 'U'
-  memset( status_r, 'N', cpf_reloaded->number_of_plugins * sizeof( unsigned char ) );
+  memset( status_r, 'N', cpf_reloaded->number_of_plugins * sizeof( uint8_t ) );
 
   // Seek for (U)nmodified libs and set the 'U' flag status:
   for ( r = 0 ; r < cpf_reloaded->number_of_plugins ; r++ ) {

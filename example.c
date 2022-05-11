@@ -10,16 +10,15 @@ main(void)
 {
   int_int_t int_int;
   charptr_t charptr;
-  int i, choice;
+  int i;
+  uint8_t choice;
   char * cp;
   uint64_t offset;
+  void * addr;
   cpf_t * cpf;
   cpf_t * cpf2;
 
-  if ( ( cpf = CPF_init( NULL, true ) ) == NULL ) {
-    LOG_ERROR( "Cannot initialize plugin framework!" )
-    return EXIT_FAILURE;
-  }
+  cpf = CPF_init( NULL, true );
 
   for(;;) {
     choice = 0;
@@ -42,7 +41,8 @@ main(void)
       cpf->path,
       cpf->number_of_plugins
     );
-    scanf( "%d", &choice );
+    scanf( "%hhd", &choice );
+    printf("\n");
 
     switch( choice )
     {
@@ -57,14 +57,14 @@ main(void)
         CPF_unload_libs( cpf );
         break;
       case 4:
-        i = (int)(uint64_t)CPF_call_func_by_name( cpf,
+        if ( ( i = (int)(uint64_t)CPF_call_func_by_name( cpf,
                                                   "lib2",
                                                   "do_operation",
                                                   FP_INT_INT,
-                                                  3 );
-        printf( "From %s/lib2.so, CPF_call_func_by_name() do_operation: 3 + 2 = %d\n",
-                cpf->path,
-                i );
+                                                  3 ) ) > 0 )
+          printf( "From %s/lib2.so, CPF_call_func_by_name() do_operation: 3 + 2 = %d\n",
+                  cpf->path,
+                  i );
         if ( ( cp = (char *)CPF_call_func_by_name( cpf,
                                                   "lib1",
                                                   "get_lib_name",
@@ -83,8 +83,8 @@ main(void)
                                                   "lib1",
                                                   "concat_char_int",
                                                   FP_VOIDPTR_CHARPTR_INT,
-                                                  (char *)"number",
-                                                  255 ) ) != NULL ) {
+                                                  (char *)"\'str number\'",
+                                                  1024 ) ) != NULL ) {
           printf( "From %s/lib1.so, CPF_call_func_by_name() concat_char_int: \"%s\"\n",
                   cpf->path,
                   cp);
@@ -92,19 +92,19 @@ main(void)
         }
         break;
       case 5:
-        printf( "From %s/lib1.so, CPF_call_func_by_addr() do_operation: 1 + 5 = %d\n",
-                cpf->path,
-                (int)(uint64_t)CPF_call_func_by_addr(
-                  CPF_get_func_addr( cpf, "lib1", "do_operation" ), FP_INT_INT, 5 )
-              );
+        if ( ( addr = CPF_get_func_addr( cpf, "lib1", "do_operation" ) ) > 0 )
+          printf( "From %s/lib1.so, CPF_call_func_by_addr() do_operation: 1 + 5 = %d\n",
+                  cpf->path,
+                  (int)(uint64_t)CPF_call_func_by_addr( addr, FP_INT_INT, 5 )
+                );
         break;
       case 6:
-        offset = CPF_get_func_offset( cpf, "lib2", "get_lib_name" );
-        printf( "From %s/lib2.so, CPF_call_func_by_offset() 0x%lx: \"%s\"\n",
-                cpf->path,
-                offset,
-                (char *)CPF_call_func_by_offset( cpf, "lib2", offset, FP_CHARPTR )
-              );
+        if ( ( offset = CPF_get_func_offset( cpf, "lib2", "get_lib_name" ) ) > 0 )
+          printf( "From %s/lib2.so, CPF_call_func_by_offset() 0x%lx: \"%s\"\n",
+                  cpf->path,
+                  offset,
+                  (char *)CPF_call_func_by_offset( cpf, "lib2", offset, FP_CHARPTR )
+                );
         break;
       case 7:
         if ( ( int_int = CPF_get_func_addr( cpf, "lib2", "do_operation" ) ) != NULL )
@@ -118,46 +118,41 @@ main(void)
         break;
       case 8:
         puts( "Initializing plugins2 directory..." );
-
         /*
          * CPF_init( "plugin_directory" ) ==> for relative local directory
          * or CPF_init( "/my/plugin/directory" ) ==> full plugin directory path
-         */
-        if ( ( cpf2 = CPF_init( "plugins2", true ) ) == NULL ) {
-          LOG_ERROR( "Cannot initialize plugin framework!" )
-          return EXIT_FAILURE;
+        */
+        cpf2 = CPF_init( "plugins2", true );
+        if ( ( offset = CPF_get_func_offset( cpf2, "lib4", "do_operation" ) ) != 0 ) {
+          printf( "From %s/lib4.so, CPF_call_func_by_offset() 0x%lx: 15 + 4 = %d\n",
+                  cpf2->path,
+                  offset,
+                  (int)(uint64_t)CPF_call_func_by_offset( cpf2,
+                                                          "lib4",
+                                                          offset,
+                                                          FP_INT_INT,
+                                                          15 ) );
         }
-        offset = CPF_get_func_offset( cpf2, "lib4", "do_operation" );
-        printf( "From %s/lib4.so, CPF_call_func_by_offset() 0x%lx: 15 + 4 = %d\n",
-                cpf2->path,
-                offset,
-                (int)(uint64_t)CPF_call_func_by_offset( cpf2,
-                                                        "lib4",
-                                                        offset,
-                                                        FP_INT_INT,
-                                                        15 ) );
         CPF_cleanup( &cpf2, true );
         break;
       case 9:
         puts( "Initializing /tmp/plugins2 directory..." );
-
         /*
          * CPF_init( "plugin_directory" ) ==> for relative local directory
          * or CPF_init( "/my/plugin/directory" ) ==> full plugin directory path
-         */
-        if ( ( cpf2 = CPF_init( "/tmp/plugins2", true ) ) == NULL ) {
-          LOG_ERROR( "Cannot initialize plugin framework!" )
-          return EXIT_FAILURE;
+        */
+        cpf2 = CPF_init( "/tmp/plugins2", true );
+        if ( ( cpf2->number_of_plugins > 0 ) &&
+             ( offset = CPF_get_func_offset( cpf2, "lib1", "do_operation" ) ) != 0 ) {
+          printf( "From %s/lib1.so, CPF_call_func_by_offset() 0x%lx: 20 + 1 = %d\n",
+                  cpf2->path,
+                  offset,
+                  (int)(uint64_t)CPF_call_func_by_offset( cpf2,
+                                                          "lib1",
+                                                          offset,
+                                                          FP_INT_INT,
+                                                          20 ) );
         }
-        offset = CPF_get_func_offset( cpf2, "lib1", "do_operation" );
-        printf( "From %s/lib1.so, CPF_call_func_by_offset() 0x%lx: 20 + 1 = %d\n",
-                cpf2->path,
-                offset,
-                (int)(uint64_t)CPF_call_func_by_offset( cpf2,
-                                                        "lib1",
-                                                        offset,
-                                                        FP_INT_INT,
-                                                        20 ) );
         CPF_cleanup( &cpf2, true );
         break;
       default:

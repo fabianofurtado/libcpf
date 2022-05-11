@@ -26,7 +26,7 @@
 void
 calc_sha1( plugin_t * plugin )
 {
-  unsigned char buffer[BUFSIZ];
+  uint8_t buffer[BUFSIZ];
   FILE *f;
   SHA_CTX ctx;
   size_t len;
@@ -53,7 +53,7 @@ calc_sha1( plugin_t * plugin )
 void
 print_sha1( plugin_t * plugin )
 {
-  unsigned char c;
+  uint8_t c;
   for ( c = 0 ; c < SHA_DIGEST_LENGTH ; c++ )
     printf( "%02x", plugin->sha1[c] );
 

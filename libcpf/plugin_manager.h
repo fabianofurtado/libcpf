@@ -23,8 +23,8 @@
 
 #include "cpf.h"
 
-void           sort_plugins( cpf_t * cpf );
-void           load_plugins( cpf_t * cpf, bool call_constructor );
-unsigned short bind_plugins( cpf_t * cpf );
+void      sort_plugins( cpf_t * cpf );
+void      load_plugins( cpf_t * cpf, bool call_constructor );
+uint16_t  bind_plugins( cpf_t * cpf );
 
 #endif
