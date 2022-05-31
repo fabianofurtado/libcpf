@@ -23,17 +23,19 @@
 #include "sha1.h"
 #include "log.h"
 
-void
-calc_sha1( plugin_t * plugin )
-{
-  uint8_t buffer[BUFSIZ];
-  FILE *f;
-  SHA_CTX ctx;
-  size_t len;
 
-  f = fopen( plugin->path, "r" );
+void
+calc_sha1( plugin_t * p )
+{
+  uint8_t   buffer[BUFSIZ];
+  FILE    * f;
+  SHA_CTX   ctx;
+  size_t    len;
+
+
+  f = fopen( p->path, "r" );
   if ( f == NULL ) {
-    LOG_ERROR( "Couldn't open plugin \"%s\"", plugin->path )
+    LOG_ERROR( "Couldn't open plugin \"%s\"", p->path )
     exit( EXIT_FAILURE );
   }
 
@@ -44,17 +46,19 @@ calc_sha1( plugin_t * plugin )
     SHA1_Update( &ctx, buffer, len );
   } while ( len == BUFSIZ );
 
-  SHA1_Final( plugin->sha1, &ctx );
+  SHA1_Final( p->sha1, &ctx );
 
   fclose(f);
 }
 
 
 void
-print_sha1( plugin_t * plugin )
+print_sha1( plugin_t * p )
 {
   uint8_t c;
-  for ( c = 0 ; c < SHA_DIGEST_LENGTH ; c++ )
-    printf( "%02x", plugin->sha1[c] );
 
+
+  for ( c = 0 ; c < SHA_DIGEST_LENGTH ; c++ ) {
+    printf( "%02x", p->sha1[c] );
+  }
 }

@@ -18,7 +18,9 @@ main(void)
   cpf_t * cpf;
   cpf_t * cpf2;
 
-  cpf = CPF_init( NULL, true );
+
+  LOG_INFO( "Loading libs..." )
+  cpf = CPF_init( NULL );
 
   for(;;) {
     choice = 0;
@@ -26,7 +28,7 @@ main(void)
       "----------------------------------------------------------------\n"
       "Welcome to libcpf example!\n"
       "----------------------------------------------------------------\n"
-      "Number of plugins loaded in \"%1$s\": %2$d\n\n"
+      "%2$.2d plugins loaded in \"%1$s/\":\n\n"
       "1. Print loaded libs\n"
       "2. Reload libs in \"%1$s\"\n"
       "3. Unload all libs in \"%1$s\"\n"
@@ -35,11 +37,11 @@ main(void)
       "6. CPF_call_func_by_offset()\n"
       "7. CPF_get_func_addr()\n"
       "8. Init local directory plugin: plugins2\n"
-      "9. Init full directory plugin: /tmp/plugins2\n"
+      "9. Init full directory plugin: /tmp/plugins2/\n"
       "0. Exit program\n"
       "\nEnter your choice: ",
       cpf->path,
-      cpf->number_of_plugins
+      cpf->num_plugins
     );
     scanf( "%hhd", &choice );
     printf("\n");
@@ -61,24 +63,27 @@ main(void)
                                                   "lib2",
                                                   "do_operation",
                                                   FP_INT_INT,
-                                                  3 ) ) > 0 )
+                                                  3 ) ) > 0 ) {
           printf( "From %s/lib2.so, CPF_call_func_by_name() do_operation: 3 + 2 = %d\n",
                   cpf->path,
                   i );
+        }
         if ( ( cp = (char *)CPF_call_func_by_name( cpf,
                                                   "lib1",
                                                   "get_lib_name",
-                                                  FP_CHARPTR ) ) != NULL )
+                                                  FP_CHARPTR ) ) != NULL ) {
           printf( "From %s/lib1.so, CPF_call_func_by_name() get_lib_name: \"%s\"\n",
                   cpf->path,
                   cp );
+        }
         if ( ( cp = (char *)CPF_call_func_by_name( cpf,
                                                   "lib2",
                                                   "get_lib_name",
-                                                  FP_CHARPTR ) ) != NULL )
+                                                  FP_CHARPTR ) ) != NULL ) {
           printf( "From %s/lib2.so, CPF_call_func_by_name() get_lib_name: \"%s\"\n",
                   cpf->path,
                   cp);
+        }
         if ( ( cp = (char *)CPF_call_func_by_name( cpf,
                                                   "lib1",
                                                   "concat_char_int",
@@ -92,29 +97,33 @@ main(void)
         }
         break;
       case 5:
-        if ( ( addr = CPF_get_func_addr( cpf, "lib1", "do_operation" ) ) > 0 )
-          printf( "From %s/lib1.so, CPF_call_func_by_addr() do_operation: 1 + 5 = %d\n",
+        if ( ( addr = CPF_get_func_addr( cpf, "lib1", "do_operation" ) ) > 0 ) {
+          printf( "From %s/lib1.so, CPF_call_func_by_addr() do_operation: 7 = %d\n",
                   cpf->path,
-                  (int)(uint64_t)CPF_call_func_by_addr( addr, FP_INT_INT, 5 )
+                  (int)(uint64_t)CPF_call_func_by_addr( addr, FP_INT_INT, 4 )
                 );
+        }
         break;
       case 6:
-        if ( ( offset = CPF_get_func_offset( cpf, "lib2", "get_lib_name" ) ) > 0 )
+        if ( ( offset = CPF_get_func_offset( cpf, "lib2", "get_lib_name" ) ) > 0 ) {
           printf( "From %s/lib2.so, CPF_call_func_by_offset() 0x%lx: \"%s\"\n",
                   cpf->path,
                   offset,
                   (char *)CPF_call_func_by_offset( cpf, "lib2", offset, FP_CHARPTR )
                 );
+        }
         break;
       case 7:
-        if ( ( int_int = CPF_get_func_addr( cpf, "lib2", "do_operation" ) ) != NULL )
+        if ( ( int_int = CPF_get_func_addr( cpf, "lib2", "do_operation" ) ) != NULL ) {
           printf( "From %s/lib2.so, CPF_get_func_addr() do_operation: 1 + 2 = %d\n",
                   cpf->path,
                   int_int(1) );
-        if ( ( charptr = CPF_get_func_addr( cpf, "lib1", "get_lib_name" ) ) != NULL )
+        }
+        if ( ( charptr = CPF_get_func_addr( cpf, "lib1", "get_lib_name" ) ) != NULL ) {
           printf( "From %s/lib1.so, CPF_get_func_addr() get_lib_name: \"%s\"\n",
                   cpf->path,
                   charptr() );
+        }
         break;
       case 8:
         puts( "Initializing plugins2 directory..." );
@@ -122,7 +131,8 @@ main(void)
          * CPF_init( "plugin_directory" ) ==> for relative local directory
          * or CPF_init( "/my/plugin/directory" ) ==> full plugin directory path
         */
-        cpf2 = CPF_init( "plugins2", true );
+        cpf2 = CPF_init( "plugins2" );
+
         if ( ( offset = CPF_get_func_offset( cpf2, "lib4", "do_operation" ) ) != 0 ) {
           printf( "From %s/lib4.so, CPF_call_func_by_offset() 0x%lx: 15 + 4 = %d\n",
                   cpf2->path,
@@ -133,7 +143,8 @@ main(void)
                                                           FP_INT_INT,
                                                           15 ) );
         }
-        CPF_cleanup( &cpf2, true );
+        CPF_call_dtor( cpf2 );
+        CPF_free( &cpf2 );
         break;
       case 9:
         puts( "Initializing /tmp/plugins2 directory..." );
@@ -141,8 +152,9 @@ main(void)
          * CPF_init( "plugin_directory" ) ==> for relative local directory
          * or CPF_init( "/my/plugin/directory" ) ==> full plugin directory path
         */
-        cpf2 = CPF_init( "/tmp/plugins2", true );
-        if ( ( cpf2->number_of_plugins > 0 ) &&
+        cpf2 = CPF_init( "/tmp/plugins2" );
+
+        if ( ( cpf2->num_plugins > 0 ) &&
              ( offset = CPF_get_func_offset( cpf2, "lib1", "do_operation" ) ) != 0 ) {
           printf( "From %s/lib1.so, CPF_call_func_by_offset() 0x%lx: 20 + 1 = %d\n",
                   cpf2->path,
@@ -153,10 +165,12 @@ main(void)
                                                           FP_INT_INT,
                                                           20 ) );
         }
-        CPF_cleanup( &cpf2, true );
+        CPF_call_dtor( cpf2 );
+        CPF_free( &cpf2 );
         break;
       default:
-        CPF_cleanup( &cpf, true );
+        CPF_call_dtor( cpf );
+        CPF_free( &cpf );
         puts( "Exiting..." );
         return EXIT_SUCCESS;
         break;

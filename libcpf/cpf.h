@@ -31,58 +31,84 @@
 #define DLCLOSE( ptr ) do { if ( ptr != NULL ) { dlclose( ptr ); ptr = NULL; } } while (0);
 
 // defines
-#define LIBCPF_VERSION          "0.0.3"
+#define LIBCPF_VERSION          "0.0.4"
 #define MAX_PLUGIN_PATH_SIZE    2048
 #define MAX_PLUGIN_NAME_SIZE    512
+#define MAX_VERSIN_SIZE_NAME    64
 #define PLUGIN_DIRNAME          "plugins"         // default directory name
 #define PLUGIN_EXTENSION        ".so"             // default plugin extension
+#define PLUGIN_INIT_CTX_FUNC    "CPF_init_ctx"    // default plugin init context func name
 #define PLUGIN_CONSTRUCTOR_FUNC "CPF_constructor" // default plugin constructor func name
 #define PLUGIN_DESTRUCTOR_FUNC  "CPF_destructor"  // default plugin destructor func name
 #define NOT_DEFINED             "<NOT DEFINED>"
 
 
 // typedefs and structs
-typedef struct {
-  char *   func_name;
+typedef struct {                          // functions definitions
+  void *   func_addr;                     // 1st struct field!!!
   uint64_t func_offset;
-  void *   func_addr;
+  char *   func_name;                     // Can be NULL! Can't be 1st struct element!!!
 } func_t;
 
+typedef struct {                          // Dependencies
+  char   * dep_lib_name;                  // 1st struct field!!!
+  func_t * funcs;
+} deps_t;
+
 typedef struct {
-  char path[MAX_PLUGIN_PATH_SIZE];  // plugin path + name with extension
-                                    // Ex: /tmp/app/plugins/myplugin.so and
-                                    //     /tmp/app/plugins/dir1/myplugin.so
-  char name[MAX_PLUGIN_NAME_SIZE];  // base path + plugin name without extension
-                                    // Ex: "myplugin" and "dir1/myplugin"
-  void * dlhandle;                  // pointer to "dl" functions
-  void * base_addr;                 // plugin (.so) base addr when loaded into memory
-  func_t * funcs;                   // pointer to funcs
-  uint16_t total_funcs;             // number of functions found in plugin (shared lib)
-  void * constructor_addr;          // pointer to constructor function
-  void * destructor_addr;           // pointer to destructor function
-  char * version;                   // optional plugin version
-  uint8_t sha1[SHA_DIGEST_LENGTH];  // plugin (.so) SHA1 hash
+  char     version[MAX_VERSIN_SIZE_NAME]; // optional plugin version
+  deps_t * deps;
+} plugin_ctx_t;
+
+typedef struct {
+  void         * dlhandle;                // ptr to "dl" functions
+  void         * base_addr;               // plugin (.so) base addr when loaded into memory
+  func_t       * lib_func;                // ptr to library functions
+  plugin_ctx_t * ctx;                     // ptr to plugin context, defined inside the lib
+  void         * ctor;                    // ptr to PLUGIN_CONSTRUCTOR_FUNC function
+  void         * dtor;                    // ptr to PLUGIN_DESTRUCTOR_FUNC function
+  void         * init_ctx;                // ptr to PLUGIN_INIT_CTX_FUNC (init context) fcn
+  uint8_t  sha1[SHA_DIGEST_LENGTH];       // plugin (.so) SHA1 hash
+  char     path[MAX_PLUGIN_PATH_SIZE];    // plugin path + name with extension
+                                          // Ex: /tmp/app/plugins/myplugin.so and
+                                          //     /tmp/app/plugins/dir1/myplugin.so
+  char     name[MAX_PLUGIN_NAME_SIZE];    // base path + plugin name without extension
+                                          // Ex: "myplugin" and "dir1/myplugin"
 } plugin_t;
 
 typedef struct {
   plugin_t * plugin;
   char path[MAX_PLUGIN_PATH_SIZE];        // plugin path without plugin name
-  uint16_t number_of_plugins;
+  uint16_t num_plugins;                   // number of plugins loaded
 } cpf_t;
 
 // constructor and destructor typedef
 typedef void ( *ctor_dtor_t ) ( plugin_t * );
 
 
-cpf_t *  CPF_init( char * directory_name, bool call_constructor_destructor );
-void     CPF_cleanup( cpf_t ** cpf, bool call_destructor );
-void *   CPF_call_func_by_addr( void * func_addr, enum func_prototype_t fproto, ... );
-void *   CPF_call_func_by_name( cpf_t * cpf, char * plugin_name, char * func_name, enum func_prototype_t fproto, ... );
-void *   CPF_call_func_by_offset( cpf_t * cpf, char * plugin_name, uint64_t func_offset, enum func_prototype_t fproto, ... );
-void *   CPF_get_func_addr( cpf_t * cpf, char * plugin_name, char * func_name );
-uint64_t CPF_get_func_offset( cpf_t * cpf, char * plugin_name, char * func_name );
-void     CPF_print_loaded_libs( cpf_t * cpf );
-int      CPF_reload_libs( cpf_t ** cpf, bool display_report );
-void     CPF_unload_libs( cpf_t * cpf );
+extern cpf_t *   CPF_init( char * directory_name );
+extern void      CPF_call_ctor( cpf_t * cpf );
+extern void      CPF_free( cpf_t ** cpf );
+extern void      CPF_call_dtor( cpf_t * cpf );
+extern void *    CPF_call_func_by_addr( void * func_addr,
+                                        enum func_prototype_t fproto,
+                                        ... );
+extern void *    CPF_call_func_by_name( cpf_t * cpf, char * plugin_name,
+                                        char * func_name,
+                                        enum func_prototype_t fproto,
+                                        ... );
+extern void *    CPF_call_func_by_offset( cpf_t * cpf,
+                                          char * plugin_name,
+                                          uint64_t func_offset,
+                                          enum func_prototype_t fproto,
+                                          ... );
+extern void *    CPF_get_func_addr( cpf_t * cpf, char * plugin_name, char * func_name );
+extern void *    CPF_get_extern_lib_func_by_dep( deps_t * d,
+                                                 char * plugin_name,
+                                                 char * func_name );
+extern uint64_t  CPF_get_func_offset( cpf_t * cpf, char * plugin_name, char * func_name );
+extern void      CPF_print_loaded_libs( cpf_t * cpf );
+extern int       CPF_reload_libs( cpf_t ** cpf, bool display_report );
+extern void      CPF_unload_libs( cpf_t * cpf );
 
 #endif
