@@ -162,11 +162,18 @@ load_plugins_2_reload( cpf_t * cpf )
           // call CPF_init_ctx() from plugin, using function ptr "init_plugin_ctx"
           plugin_ctx_t * (*init_plugin_ctx)() = fcn_addr;
           if ( ( cpf->plugin[p_count].ctx = init_plugin_ctx() ) == NULL ) {
-            LOG_ERROR( "Cannot initializate plugin \"%s"PLUGIN_EXTENSION"\" context!\n"
+            LOG_ERROR( "Cannot initializate plugin \"%s"PLUGIN_EXTENSION"\" context! "
                        "Look at \""PLUGIN_INIT_CTX_FUNC"()\" function.",
                        cpf->plugin[p_count].name )
             exit( EXIT_FAILURE );
           }
+          if ( cpf->plugin[p_count].ctx->deps == NULL ) {
+            LOG_ERROR( "Cannot initializate plugin \"%s"PLUGIN_EXTENSION"\" dependencies! "
+                       "Look at \""PLUGIN_INIT_CTX_FUNC"()\" function and "
+                       "set the plugin context dependency!",
+                       cpf->plugin[p_count].name )
+            exit( EXIT_FAILURE );
+          }         
           continue;
         }
         // "valid" function found

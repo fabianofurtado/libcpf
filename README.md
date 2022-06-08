@@ -173,6 +173,7 @@ The libcpf provides the function _void CPF\_print\_loaded\_libs( cpf\_t * cpf );
                 * "do_operation" (offset 0x1150 / address 0x7fa14976c150)
 
 ## Releases
+- v0.0.5 - 2022-06-08 - Bug fix
 - v0.0.4 - 2022-05-31 - Simple lib dependencies control
 - v0.0.3 - 2022-05-11 - Bug fixes
 - v0.0.2 - 2021-07-08 - Constructor and Destructor function calls
