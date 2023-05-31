@@ -21,7 +21,7 @@
 #ifndef __CPF_H__
 #define __CPF_H__
 
-#include <openssl/sha.h>
+#include <openssl/evp.h>
 #include <stdbool.h>
 #include "fp_prototype.h"
 #include "log.h"
@@ -30,8 +30,10 @@
 #define FREE( ptr ) do { free( ptr ); ptr = NULL; } while (0); // avoid dangling pointer
 #define DLCLOSE( ptr ) do { if ( ptr != NULL ) { dlclose( ptr ); ptr = NULL; } } while (0);
 
+#define BLAKE2S256SIZE          32
+
 // defines
-#define LIBCPF_VERSION          "0.0.4"
+#define LIBCPF_VERSION          "0.0.6"
 #define MAX_PLUGIN_PATH_SIZE    2048
 #define MAX_PLUGIN_NAME_SIZE    512
 #define MAX_VERSIN_SIZE_NAME    64
@@ -68,7 +70,7 @@ typedef struct {
   void         * ctor;                    // ptr to PLUGIN_CONSTRUCTOR_FUNC function
   void         * dtor;                    // ptr to PLUGIN_DESTRUCTOR_FUNC function
   void         * init_ctx;                // ptr to PLUGIN_INIT_CTX_FUNC (init context) fcn
-  uint8_t  sha1[SHA_DIGEST_LENGTH];       // plugin (.so) SHA1 hash
+  uint8_t  blake2s256[BLAKE2S256SIZE];    // plugin (.so) blake2s256 hash
   char     path[MAX_PLUGIN_PATH_SIZE];    // plugin path + name with extension
                                           // Ex: /tmp/app/plugins/myplugin.so and
                                           //     /tmp/app/plugins/dir1/myplugin.so

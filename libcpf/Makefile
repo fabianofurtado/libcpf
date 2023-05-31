@@ -4,7 +4,7 @@ LDFLAGS=-shared # linking flags
 TARGET=libcpf.so
 OBJECTS=\
 cpf.o \
-sha1.o \
+blake2.o \
 fp_prototype.o \
 plugin_manager.o
 

@@ -26,7 +26,7 @@
 #include <string.h>
 #include "cpf.h"
 #include "plugin_manager.h"
-#include "sha1.h"
+#include "blake2.h"
 
 
 static void
@@ -280,8 +280,8 @@ CPF_print_loaded_libs( cpf_t * cpf )
             cpf->plugin[i].ctx->version);
     printf( "    * base address: %p\n",
           cpf->plugin[i].base_addr);
-    printf( "    * hash id sha1: ");
-    print_sha1( &cpf->plugin[i] );
+    printf( "    * hash id blake2: ");
+    print_blake2( &cpf->plugin[i] );
     printf( "\n    * %d dependenc", d );
     if ( d == 1 ) {
       printf( "y" );
@@ -576,9 +576,9 @@ CPF_reload_libs( cpf_t ** cpf, bool display_report )
     LOG_INFO( "Reloaded libs in \"%s\":", (*cpf)->path )
   }
   // Set the new lib status:
-  //   * (R)eload: The loaded lib was modified ( same name and different sha1 )
+  //   * (R)eload: The loaded lib was modified ( same name and different Message Digest )
   //   * (D)elete: The loaded lib doesn't exist anymore ( lib deleted from directory )
-  //   * (U)nmodified: The loaded lib wasn't modified ( same name and sha1 )
+  //   * (U)nmodified: The loaded lib wasn't modified ( same name and Message Digest )
   //   * (N)ew: The lib's name isn't in the current list ( new lib/name to load in the list )
 
   // Set to Delete 'D' the default status of current plugin
@@ -593,7 +593,7 @@ CPF_reload_libs( cpf_t ** cpf, bool display_report )
     for ( l = 0 ; l < (*cpf)->num_plugins; l++ ) {
       if ( ( status_l[l] == 'D' ) &&
            ( strncmp( (*cpf)->plugin[l].name, cpf_reloaded->plugin[r].name, sizeof( (*cpf)->plugin->name ) ) == 0 ) &&
-           ( memcmp( (*cpf)->plugin[l].sha1, cpf_reloaded->plugin[r].sha1, sizeof( (*cpf)->plugin->sha1 ) ) == 0 ) ) {
+           ( memcmp( (*cpf)->plugin[l].blake2s256, cpf_reloaded->plugin[r].blake2s256, sizeof( (*cpf)->plugin->blake2s256 ) ) == 0 ) ) {
         status_l[l] = 'U';
         status_r[r] = 'U';
       }
@@ -601,7 +601,7 @@ CPF_reload_libs( cpf_t ** cpf, bool display_report )
   }
 
   // Modified libs will be updated in memory:
-  // set to (R)eload 'R' flash/status if the lib name is the same and sha1 is different
+  // set to (R)eload 'R' flash/status if the lib name is the same and Message Digest is different
   // status_l: possible flags status here: 'D' or 'U'
   // status_r: possible flags status here: 'N' or 'U'
   for ( r = 0 ; r < cpf_reloaded->num_plugins ; r++ ) {
@@ -610,7 +610,7 @@ CPF_reload_libs( cpf_t ** cpf, bool display_report )
     for ( l = 0 ; l < (*cpf)->num_plugins; l++ ) {
       if ( ( status_l[l] == 'D' ) &&
            ( strncmp( (*cpf)->plugin[l].name, cpf_reloaded->plugin[r].name, sizeof( (*cpf)->plugin->name ) ) == 0 ) &&
-           ( memcmp( (*cpf)->plugin[l].sha1, cpf_reloaded->plugin[r].sha1, sizeof( (*cpf)->plugin->sha1 ) ) != 0 ) ) {
+           ( memcmp( (*cpf)->plugin[l].blake2s256, cpf_reloaded->plugin[r].blake2s256, sizeof( (*cpf)->plugin->blake2s256 ) ) != 0 ) ) {
         status_l[l] = 'R';
         status_r[r] = 'R';
         // Do the (R)eload process:

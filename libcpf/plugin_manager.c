@@ -30,7 +30,7 @@
 #include <stdlib.h>
 #include "plugin_manager.h"
 #include "log.h"
-#include "sha1.h"
+#include "blake2.h"
 
 
 static int
@@ -232,7 +232,7 @@ load_plugins_2_reload( cpf_t * cpf )
         j++;
       }
     }
-    calc_sha1( &cpf->plugin[p_count] );
+    calc_blake2( &cpf->plugin[p_count] );
   } // end for
   sort_plugins( cpf );
 }

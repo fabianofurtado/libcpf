@@ -1,7 +1,7 @@
 /*
   libcpf - C Plugin Framework
 
-  sha1.h - header file
+  blake.h - header file
 
   Copyright (C) 2021 libcpf authors
 
@@ -18,12 +18,12 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-#ifndef __SHA1_H__
-#define __SHA1_H__
+#ifndef __BLAKE2_H__
+#define __BLAKE2_H__
 
 #include "cpf.h"
 
-void calc_sha1( plugin_t * plugin );
-void print_sha1( plugin_t * plugin );
+void calc_blake2( plugin_t * plugin );
+void print_blake2( plugin_t * plugin );
 
 #endif

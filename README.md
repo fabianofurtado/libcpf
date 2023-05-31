@@ -127,6 +127,7 @@ There are five _#defines_ in _cpf.h_ to customize it:
 ## Using the provided example
 There's one example explaining the use of libcpf. To compile it, run:
 
+    $ mkdir -p libs
     $ cd libcpf/
     $ make
     $ cd ../plugin/
@@ -135,6 +136,7 @@ There's one example explaining the use of libcpf. To compile it, run:
     $ make
     $ cd ..
     $ make
+    $ mkdir -p plugins/other/
     $ cp plugins2/lib4.so plugins/other/
 
 Execute the example program:
@@ -173,6 +175,7 @@ The libcpf provides the function _void CPF\_print\_loaded\_libs( cpf\_t * cpf );
                 * "do_operation" (offset 0x1150 / address 0x7fa14976c150)
 
 ## Releases
+- v0.0.6 - 2023-05-30 - Use of OpenSSL EVP_blake2b512() message digest function
 - v0.0.5 - 2022-06-08 - Bug fix
 - v0.0.4 - 2022-05-31 - Simple lib dependencies control
 - v0.0.3 - 2022-05-11 - Bug fixes
